@@ -13,4 +13,4 @@ module purge
 # load in the module dependencies for this script
 module load "languages/anaconda3/2021-3.8.8-cuda-11.1-pytorch"
 
-python train_cifar.py --learning-rate 1e-1 --batch-size 128 --sgd-momentum 1.8
+python train_cifar.py --learning-rate 1e-1 --batch-size 128 --sgd-momentum 0.9 --epochs 10
