@@ -65,6 +65,10 @@ parser.add_argument(
     help="Number of worker processes used to load data.",
 )
 parser.add_argument("--sgd-momentum", default=0, type=float)
+parser.add_argument("--data-aug-hflip", action="store_true")
+parser.add_argument("--data-aug-brightness", default=0, type=float)
+parser.add_argument("--dropout", default=0, type=float)
+
 
 
 class ImageShape(NamedTuple):
@@ -80,13 +84,19 @@ else:
 
 
 def main(args):
-    transform = transforms.ToTensor()
+    train_transform = transforms.ToTensor()
+    test_transform = transforms.ToTensor()
+    if args.data_aug_hflip:
+        train_transform = transforms.Compose([
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ColorJitter(args.data_aug_brightness),
+            torchvision.transforms.ToTensor()])
     args.dataset_root.mkdir(parents=True, exist_ok=True)
     train_dataset = torchvision.datasets.CIFAR10(
-        args.dataset_root, train=True, download=True, transform=transform
+        args.dataset_root, train=True, download=True, transform=train_transform
     )
     test_dataset = torchvision.datasets.CIFAR10(
-        args.dataset_root, train=False, download=False, transform=transform
+        args.dataset_root, train=False, download=False, transform=test_transform
     )
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -103,7 +113,7 @@ def main(args):
         pin_memory=True,
     )
 
-    model = CNN(height=32, width=32, channels=3, class_count=10)
+    model = CNN(height=32, width=32, channels=3, class_count=10, dropout=args.dropout)
 
     ## TASK 8: Redefine the criterion to be softmax cross entropy
     criterion = nn.CrossEntropyLoss()
@@ -132,8 +142,9 @@ def main(args):
 
 
 class CNN(nn.Module):
-    def __init__(self, height: int, width: int, channels: int, class_count: int):
+    def __init__(self, height: int, width: int, channels: int, class_count: int, dropout: float):
         super().__init__()
+        self.dropout = nn.Dropout(dropout) 
         self.input_shape = ImageShape(height=height, width=width, channels=channels)
         self.class_count = class_count
 
@@ -179,9 +190,9 @@ class CNN(nn.Module):
         ##         (batch_size, 4096)
         x = torch.flatten(x, 1)
         ## TASK 5-2: Pass x through the first fully connected layer
-        x = F.relu(self.batch3(self.fc1(x)))
+        x = F.relu(self.batch3(self.fc1(self.dropout(x))))
         ## TASK 6-2: Pass x through the last fully connected layer
-        x = self.fc2(x)
+        x = self.fc2(self.dropout(x))
         return x
 
     @staticmethod
@@ -360,7 +371,16 @@ def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
         from getting logged to the same TB log directory (which you can't easily
         untangle in TB).
     """
-    tb_log_dir_prefix = f'CNN_bn_slr_bs={args.batch_size}_lr={args.learning_rate}_momentum={args.sgd_momentum}_run_'
+    tb_log_dir_prefix = (
+        f"CNN_bn_"
+        f"dropout={args.dropout}_"
+        f"bs={args.batch_size}_"
+        f"lr={args.learning_rate}_"
+        f"momentum=0.9_"
+        f"brightness={args.data_aug_brightness}_" +
+        ("hflip_" if args.data_aug_hflip else "") +
+        f"run_"
+    )
     i = 0
     while i < 1000:
         tb_log_dir = args.log_dir / (tb_log_dir_prefix + str(i))

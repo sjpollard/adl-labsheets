@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#SBATCH --job-name=lab3
+#SBATCH --job-name=lab4
 #SBATCH --partition=teach_gpu
 #SBATCH --nodes=1
 #SBATCH --output train_cifar.out
@@ -13,4 +13,4 @@ module purge
 # load in the module dependencies for this script
 module load "languages/anaconda3/2021-3.8.8-cuda-11.1-pytorch"
 
-python train_cifar.py --learning-rate 1e-1 --batch-size 128 --sgd-momentum 0.9
+python train_cifar.py --learning-rate 1e-1 --batch-size 128 --sgd-momentum 0.9 --dropout 0.5
